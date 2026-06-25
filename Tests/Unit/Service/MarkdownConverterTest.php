@@ -429,7 +429,83 @@ HTML;
         self::assertStringContainsString('Plain', $markdown);
         self::assertStringContainsString('Named', $markdown);
         self::assertStringContainsString('[Jump](#section)', $markdown);
-        self::assertStringNotContainsString('<a', $markdown);
+        self::assertStringNotContainsString('<a id="anchor"></a>', $markdown);
+    }
+
+    /**
+     * @test
+     */
+    public function doesNotKeepReferencedElementIdsAsRawMarkdownAnchors(): void
+    {
+        $html = <<<'HTML'
+<html>
+    <body>
+        <main>
+            <a href="#section-one">Jump to section one</a>
+            <section id="section-one">
+                <h2>Section One</h2>
+                <p>Useful content.</p>
+            </section>
+        </main>
+    </body>
+</html>
+HTML;
+
+        $markdown = $this->createConverter()->convert($html);
+
+        self::assertStringContainsString('[Jump to section one](#section-one)', $markdown);
+        self::assertStringNotContainsString('<a id="section-one"></a>', $markdown);
+        self::assertStringContainsString('## Section One', $markdown);
+        self::assertStringContainsString('Useful content.', $markdown);
+    }
+
+    /**
+     * @test
+     */
+    public function removedNavigationDoesNotExposeUnlinkedJumpMarkerTargets(): void
+    {
+        $html = <<<'HTML'
+<html>
+    <body>
+        <main>
+            <div class="hash-menu__wrapper">
+                <ul class="hash-menu">
+                    <li><a href="#section-one">Section One</a></li>
+                </ul>
+            </div>
+            <section id="section-one">
+                <h2>Section One</h2>
+                <p>Useful content.</p>
+            </section>
+        </main>
+    </body>
+</html>
+HTML;
+
+        $simplifier = new HtmlContentSimplifier();
+        $this->inject($simplifier, 'navigationSelectors', ['.hash-menu__wrapper' => true]);
+        $converter = new MarkdownConverter($simplifier);
+
+        $markdown = $converter->convert($html);
+
+        self::assertStringNotContainsString('[Section One](#section-one)', $markdown);
+        self::assertStringNotContainsString('<a id="section-one"></a>', $markdown);
+        self::assertStringContainsString('## Section One', $markdown);
+        self::assertStringContainsString('Useful content.', $markdown);
+    }
+
+    /**
+     * @test
+     */
+    public function doesNotExposeIdsFromOrdinaryLinksAsMarkdownAnchors(): void
+    {
+        $html = '<html><body><main><a id="link-123" href="#section-one">Jump</a><section id="section-one"><h2>Section One</h2></section></main></body></html>';
+
+        $markdown = $this->createConverter()->convert($html);
+
+        self::assertStringContainsString('[Jump](#section-one)', $markdown);
+        self::assertStringNotContainsString('<a id="section-one"></a>', $markdown);
+        self::assertStringNotContainsString('<a id="link-123"></a>', $markdown);
     }
 
     /**
