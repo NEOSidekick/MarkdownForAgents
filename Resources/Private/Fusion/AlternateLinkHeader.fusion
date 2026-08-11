@@ -1,5 +1,12 @@
 prototype(Neos.Neos:Page) {
     httpResponseHead.headers.Link.@process.appendAgentLinks = Neos.Fusion:Join {
+        # Neos renders 403/404/410 responses through Neos\Neos\View\FusionExceptionView, which
+        # builds a Neos.Neos:Page from the default site node for a request that need not belong
+        # to any site at all — Neos.Neos:NodeUri then throws because no route can be resolved,
+        # inside the exception handler. An error response has no markdown alternate to advertise
+        # anyway, so skip the headers there. "statusCode" is only in context in that view.
+        @if.isNotErrorResponse = ${statusCode == null}
+
         @glue = ', '
 
         existing = ${value}
